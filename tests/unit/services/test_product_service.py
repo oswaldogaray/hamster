@@ -1,0 +1,233 @@
+from decimal import Decimal
+from unittest.mock import MagicMock
+
+import pytest
+from pydantic import ValidationError as PydanticValidationError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+
+from app.models.product import Product
+from app.schemas.product import ProductCreate, ProductUpdate
+from app.services.exceptions import ConflictError, NotFoundError, ServiceError, ValidationError
+from app.services.product_service import ProductService
+from tests.factories import create_category
+
+
+@pytest.fixture()
+def service(db_session):
+    return ProductService(db_session)
+
+
+def _build_product_create_payload(category_id, sku="KB-100"):
+    return ProductCreate(
+        category_id=category_id,
+        name="Mechanical Keyboard",
+        sku=sku,
+        stock_quantity=30,
+        cost=Decimal("40.00"),
+        sale_price=Decimal("79.99"),
+    )
+
+
+def test_create_product_success(service, db_session):
+    # Arrange
+    category = create_category(db_session, name="Electronics", description="Category for product tests")
+    payload = _build_product_create_payload(category.id)
+
+    # Act
+    created = service.create_product(payload)
+
+    # Assert
+    assert created.id is not None
+    assert created.category_id == category.id
+    assert created.sku == "KB-100"
+
+
+def test_create_product_duplicate_sku_raises_conflict(service, db_session):
+    # Arrange
+    category = create_category(db_session, name="Electronics", description="Category for product tests")
+    service.create_product(_build_product_create_payload(category.id, sku="KB-100"))
+    duplicate_payload = _build_product_create_payload(category.id, sku="KB-100")
+
+    # Act / Assert
+    with pytest.raises(ConflictError, match="already exists"):
+        service.create_product(duplicate_payload)
+
+
+def test_create_product_with_missing_category_raises_not_found(service):
+    # Arrange
+    payload = _build_product_create_payload(category_id=999)
+
+    # Act / Assert
+    with pytest.raises(NotFoundError, match="Category 999 was not found"):
+        service.create_product(payload)
+
+
+def test_update_product_success(service, db_session):
+    # Arrange
+    category = create_category(db_session, name="Electronics", description="Category for product tests")
+    product = service.create_product(_build_product_create_payload(category.id, sku="KB-100"))
+    update_payload = ProductUpdate(name="Gaming Keyboard", stock_quantity=45)
+
+    # Act
+    updated = service.update_product(product.id, update_payload)
+
+    # Assert
+    assert updated.id == product.id
+    assert updated.name == "Gaming Keyboard"
+    assert updated.stock_quantity == 45
+
+
+def test_update_product_duplicate_sku_raises_conflict(service, db_session):
+    # Arrange
+    category = create_category(db_session, name="Electronics", description="Category for product tests")
+    first = service.create_product(_build_product_create_payload(category.id, sku="KB-100"))
+    service.create_product(_build_product_create_payload(category.id, sku="KB-200"))
+    duplicate_sku_payload = ProductUpdate(sku="KB-200")
+
+    # Act / Assert
+    with pytest.raises(ConflictError, match="already exists"):
+        service.update_product(first.id, duplicate_sku_payload)
+
+
+def test_update_product_schema_rejects_negative_stock_value():
+    # Arrange
+    invalid_stock = -1
+
+    # Act / Assert
+    with pytest.raises(PydanticValidationError):
+        ProductUpdate(stock_quantity=invalid_stock)
+
+
+def test_update_product_with_model_construct_negative_stock_raises_validation_error(service, db_session):
+    # Arrange
+    category = create_category(db_session, name="Electronics", description="Category for product tests")
+    product = service.create_product(_build_product_create_payload(category.id))
+    invalid_payload = ProductUpdate.model_construct(stock_quantity=-1)
+
+    # Act / Assert
+    with pytest.raises(ValidationError, match="cannot be negative"):
+        service.update_product(product.id, invalid_payload)
+
+
+def test_delete_product_success(service, db_session):
+    # Arrange
+    category = create_category(db_session, name="Electronics", description="Category for product tests")
+    product = service.create_product(_build_product_create_payload(category.id))
+
+    # Act
+    service.delete_product(product.id)
+
+    # Assert
+    deleted = db_session.get(Product, product.id)
+    assert deleted is None
+
+
+def test_create_product_integrity_error_raises_conflict_and_rolls_back():
+    # Arrange
+    db = MagicMock()
+
+    def scalar_side_effect(stmt):
+        text = str(stmt)
+        if "FROM categories" in text:
+            return 1
+        if "FROM products" in text:
+            return None
+        return None
+
+    db.scalar.side_effect = scalar_side_effect
+    db.commit.side_effect = IntegrityError("INSERT", {}, Exception("constraint"))
+
+    service = ProductService(db)
+    payload = ProductCreate(
+        category_id=1,
+        name="Mechanical Keyboard",
+        sku="KB-100",
+        stock_quantity=10,
+        cost=Decimal("40.00"),
+        sale_price=Decimal("79.99"),
+    )
+
+    # Act / Assert
+    with pytest.raises(ConflictError, match="could not be created due to a data conflict"):
+        service.create_product(payload)
+    db.rollback.assert_called_once()
+
+
+def test_create_product_sqlalchemy_error_raises_service_error_and_rolls_back():
+    # Arrange
+    db = MagicMock()
+
+    def scalar_side_effect(stmt):
+        text = str(stmt)
+        if "FROM categories" in text:
+            return 1
+        if "FROM products" in text:
+            return None
+        return None
+
+    db.scalar.side_effect = scalar_side_effect
+    db.commit.side_effect = SQLAlchemyError("db down")
+
+    service = ProductService(db)
+    payload = ProductCreate(
+        category_id=1,
+        name="Mechanical Keyboard",
+        sku="KB-100",
+        stock_quantity=10,
+        cost=Decimal("40.00"),
+        sale_price=Decimal("79.99"),
+    )
+
+    # Act / Assert
+    with pytest.raises(ServiceError, match="Unexpected database error while creating product"):
+        service.create_product(payload)
+    db.rollback.assert_called_once()
+
+
+def test_update_product_sqlalchemy_error_raises_service_error_and_rolls_back():
+    # Arrange
+    existing = Product(
+        id=10,
+        category_id=1,
+        name="Mechanical Keyboard",
+        sku="KB-100",
+        stock_quantity=10,
+        cost=Decimal("40.00"),
+        sale_price=Decimal("79.99"),
+    )
+
+    db = MagicMock()
+    db.get.return_value = existing
+    db.commit.side_effect = SQLAlchemyError("db down")
+
+    service = ProductService(db)
+    payload = ProductUpdate(name="Updated Name")
+
+    # Act / Assert
+    with pytest.raises(ServiceError, match="Unexpected database error while updating product"):
+        service.update_product(10, payload)
+    db.rollback.assert_called_once()
+
+
+def test_delete_product_sqlalchemy_error_raises_service_error_and_rolls_back():
+    # Arrange
+    existing = Product(
+        id=20,
+        category_id=1,
+        name="Mechanical Keyboard",
+        sku="KB-100",
+        stock_quantity=10,
+        cost=Decimal("40.00"),
+        sale_price=Decimal("79.99"),
+    )
+
+    db = MagicMock()
+    db.get.return_value = existing
+    db.commit.side_effect = SQLAlchemyError("db down")
+
+    service = ProductService(db)
+
+    # Act / Assert
+    with pytest.raises(ServiceError, match="Unexpected database error while deleting product"):
+        service.delete_product(20)
+    db.rollback.assert_called_once()
