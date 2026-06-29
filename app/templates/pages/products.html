@@ -1,0 +1,185 @@
+{% extends "base.html" %}
+
+{% block title %}Products | {{ app_name }}{% endblock %}
+
+{% block page_header %}
+<section class="saas-card mb-6 rounded-3xl p-6 sm:p-7">
+    <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+            <p class="text-xs uppercase tracking-[0.2em] text-teal-300/80">Catalog Hub</p>
+            <h2 class="mt-2 font-display text-2xl font-semibold text-white sm:text-3xl">Products</h2>
+            <p class="mt-2 max-w-2xl text-sm text-slate-300">Search, review, and manage your product catalog in one place.</p>
+        </div>
+        <div class="flex w-full max-w-2xl flex-col gap-3 sm:flex-row sm:items-end sm:justify-end">
+            <div class="w-full sm:max-w-md">
+                <label for="product-search" class="mb-2 block text-xs font-medium uppercase tracking-widest text-slate-400">Search Products</label>
+                <div class="relative">
+                    <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35m0 0a7.5 7.5 0 1 0-10.607 0 7.5 7.5 0 0 0 10.607 0z"/>
+                        </svg>
+                    </span>
+                    <input
+                        id="product-search"
+                        type="search"
+                        placeholder="Search by product name"
+                        class="saas-input py-2.5 pl-10 pr-3"
+                        aria-label="Search products"
+                    />
+                </div>
+            </div>
+            <button
+                id="open-product-modal"
+                type="button"
+                class="saas-btn saas-btn-primary px-4 py-2.5 text-sm"
+            >
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 5.25v13.5m6.75-6.75H5.25"/>
+                </svg>
+                Add Product
+            </button>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block content %}
+<section class="saas-card rounded-3xl p-4 sm:p-6">
+    <div id="products-error" class="mb-4 hidden rounded-xl border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-sm text-rose-200" role="alert" aria-live="assertive"></div>
+
+    <div class="saas-table-wrap overflow-x-auto">
+        <table class="min-w-full text-left text-sm">
+            <thead>
+                <tr class="border-b border-slate-800 bg-slate-900/70 text-xs uppercase tracking-wider text-slate-400">
+                    <th class="px-3 py-3 font-medium">Product</th>
+                    <th class="px-3 py-3 font-medium">Category</th>
+                    <th class="px-3 py-3 font-medium">Stock</th>
+                    <th class="px-3 py-3 font-medium">Cost</th>
+                    <th class="px-3 py-3 font-medium">Sale Price</th>
+                    <th class="px-3 py-3 font-medium">Status</th>
+                    <th class="px-3 py-3 font-medium text-right">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="products-table-body" class="divide-y divide-slate-800 text-slate-200">
+                <tr>
+                    <td colspan="7" class="px-3 py-10">
+                        <div class="saas-empty animate-pulseSoft">Loading products...</div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="mt-5 flex flex-col gap-3 border-t border-slate-800 pt-4 sm:flex-row sm:items-center sm:justify-between">
+        <p id="products-meta" class="text-xs text-slate-400">Showing 0 to 0 of 0 products</p>
+        <div class="flex items-center gap-2">
+            <button
+                id="products-prev"
+                class="saas-btn saas-btn-muted rounded-lg px-3 py-2 text-xs disabled:cursor-not-allowed disabled:opacity-40"
+                type="button"
+            >
+                Previous
+            </button>
+            <span id="products-page-indicator" class="min-w-24 text-center text-xs text-slate-300">Page 1 of 1</span>
+            <button
+                id="products-next"
+                class="saas-btn saas-btn-muted rounded-lg px-3 py-2 text-xs disabled:cursor-not-allowed disabled:opacity-40"
+                type="button"
+            >
+                Next
+            </button>
+        </div>
+    </div>
+</section>
+
+<div
+    id="product-modal-overlay"
+    class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-950/75 px-4 py-6 backdrop-blur-sm opacity-0 transition-opacity duration-300"
+>
+    <div
+        id="product-modal-panel"
+        class="w-full max-w-2xl scale-95 rounded-3xl border border-slate-700 bg-slate-900 shadow-glow transition-all duration-300"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="product-modal-title"
+    >
+        <div class="flex items-center justify-between border-b border-slate-800 px-5 py-4 sm:px-6">
+            <div>
+                <h3 id="product-modal-title" class="text-lg font-semibold text-white">Create Product</h3>
+                <p id="product-modal-subtitle" class="text-xs text-slate-400">Add a new product to your catalog.</p>
+            </div>
+            <button
+                id="close-product-modal"
+                type="button"
+                class="rounded-lg p-2 text-slate-400 transition hover:bg-slate-800 hover:text-white"
+                aria-label="Close modal"
+            >
+                <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+
+        <form id="product-form" class="space-y-4 px-5 py-5 sm:px-6" novalidate>
+            <input type="hidden" id="product-id" />
+            <div id="product-modal-errors" class="hidden rounded-xl border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-sm text-rose-200" role="alert" aria-live="assertive"></div>
+
+            <div class="grid gap-4 sm:grid-cols-2">
+                <div class="sm:col-span-2">
+                    <label for="product-name" class="mb-1.5 block text-xs font-medium uppercase tracking-wider text-slate-400">Product Name</label>
+                    <input id="product-name" name="name" type="text" class="product-field saas-input" placeholder="Wireless Keyboard" />
+                </div>
+
+                <div>
+                    <label for="product-category" class="mb-1.5 block text-xs font-medium uppercase tracking-wider text-slate-400">Category</label>
+                    <select id="product-category" name="category_id" class="product-field saas-select"></select>
+                </div>
+
+                <div>
+                    <label for="product-sku" class="mb-1.5 block text-xs font-medium uppercase tracking-wider text-slate-400">SKU</label>
+                    <input id="product-sku" name="sku" type="text" class="product-field saas-input" placeholder="KB-001" />
+                </div>
+
+                <div>
+                    <label for="product-stock" class="mb-1.5 block text-xs font-medium uppercase tracking-wider text-slate-400">Stock</label>
+                    <input id="product-stock" name="stock_quantity" type="number" min="0" class="product-field saas-input" placeholder="0" />
+                </div>
+
+                <div>
+                    <label for="product-cost" class="mb-1.5 block text-xs font-medium uppercase tracking-wider text-slate-400">Cost</label>
+                    <input id="product-cost" name="cost" type="number" min="0" step="0.01" class="product-field saas-input" placeholder="0.00" />
+                </div>
+
+                <div>
+                    <label for="product-sale-price" class="mb-1.5 block text-xs font-medium uppercase tracking-wider text-slate-400">Sale Price</label>
+                    <input id="product-sale-price" name="sale_price" type="number" min="0" step="0.01" class="product-field saas-input" placeholder="0.00" />
+                </div>
+            </div>
+
+            <div class="flex flex-col-reverse gap-2 border-t border-slate-800 pt-4 sm:flex-row sm:justify-end">
+                <button
+                    id="cancel-product-modal"
+                    type="button"
+                    class="saas-btn saas-btn-muted px-4 py-2.5 text-sm"
+                >
+                    Cancel
+                </button>
+                <button
+                    id="submit-product"
+                    type="submit"
+                    class="saas-btn saas-btn-primary px-4 py-2.5 text-sm disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                    <svg id="product-submit-spinner" class="hidden h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v3m0 9v3m7.5-7.5h-3m-9 0h-3m12.364 5.864l-2.122-2.122m-7.486-7.486L4.712 6.378m12.652 0l-2.122 2.122m-7.486 7.486L4.712 17.108"/>
+                    </svg>
+                    <span id="product-submit-label">Save Product</span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script type="module" src="{{ url_for('static', path='/js/products/page.js') }}"></script>
+{% endblock %}

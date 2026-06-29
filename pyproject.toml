@@ -1,0 +1,10 @@
+[project]
+name = "hamster-inventory-sales"
+version = "0.1.0"
+description = "Inventory and sales management system scaffold with FastAPI"
+readme = "README.md"
+requires-python = ">=3.13,<3.14"
+dependencies = []
+
+[tool.ruff]
+line-length = 100
