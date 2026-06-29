@@ -10,6 +10,25 @@ A clean-architecture oriented project scaffold for an inventory and sales manage
 - Pydantic
 - Jinja2 templates
 
+## Python Version Notice (Important)
+
+This project is intentionally pinned to **Python 3.13**.
+
+We tested this codebase on Python 3.14 and found compatibility problems with parts of the dependency/tooling stack used here (runtime and test ecosystem). To keep local development and CI stable, we standardized on 3.13.
+
+Practical impact:
+- Use Python **3.13.x** for local setup, tests, and CI jobs.
+- Avoid Python 3.14 for this repository until dependencies are fully verified as compatible.
+- The repository includes a `.python-version` file to reinforce this version choice.
+
+Quick verification command:
+
+```bash
+python --version
+```
+
+Expected output should begin with `Python 3.13`.
+
 ## Architecture Overview
 This scaffold follows clean architecture principles by organizing responsibilities into layers:
 - Routers: HTTP and REST endpoint definitions
@@ -38,53 +57,135 @@ tests/
 
 ## Run Locally
 
-1. Create and activate a Python 3.13 virtual environment.
+1. Install Python 3.13.
+
+   **macOS (Homebrew)**
+
+   ```bash
+   brew update
+   brew install python@3.13
+   ```
+
+   **Ubuntu / Debian**
+
+   ```bash
+   sudo apt update
+   sudo apt install -y software-properties-common
+   sudo add-apt-repository -y ppa:deadsnakes/ppa
+   sudo apt update
+   sudo apt install -y python3.13 python3.13-venv python3.13-dev
+   ```
+
+   **Fedora**
+
+   ```bash
+   sudo dnf install -y python3.13
+   ```
+
+   **Windows (winget)**
+
+   ```powershell
+   winget install -e --id Python.Python.3.13
+   ```
+
+2. Create and activate a Python 3.13 virtual environment.
 
    **Windows**
 
    ```bash
-
-   python -m venv .venv
-
+   py -3.13 -m venv .venv
    .venv\Scripts\activate
-
    ```
 
    **macOS / Linux**
 
    ```bash
-
    python3.13 -m venv .venv
-
    source .venv/bin/activate
-
    ```
 
    Once activated, your terminal should display the virtual environment name (e.g., `(.venv)`), indicating that all dependencies will be installed in an isolated environment.
 
-2. Install dependencies:
+3. Install dependencies:
 
    ```bash
-
    pip install -r requirements.txt
-
    ```
 
-3. Run the application:
+4. Run the application:
 
    ```bash
-
    uvicorn app.main:app --reload
-
    ```
 
    Or run it directly with Python:
 
    ```bash
-
    python -m app.main
-
    ```
+
+## Quick Setup Scripts (Near One-Step)
+
+The following scripts install common prerequisites, set up Python 3.13, create a virtual environment, and install project dependencies.
+
+### macOS (bash)
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+
+if ! command -v brew >/dev/null 2>&1; then
+  echo "Homebrew is required. Install it from https://brew.sh and rerun."
+  exit 1
+fi
+
+brew update
+brew install python@3.13 git
+
+python3.13 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+
+echo "Setup complete. Run: source .venv/bin/activate && uvicorn app.main:app --reload"
+```
+
+### Ubuntu / Debian (bash)
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+
+sudo apt update
+sudo apt install -y software-properties-common git curl
+sudo add-apt-repository -y ppa:deadsnakes/ppa
+sudo apt update
+sudo apt install -y python3.13 python3.13-venv python3.13-dev
+
+python3.13 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+
+echo "Setup complete. Run: source .venv/bin/activate && uvicorn app.main:app --reload"
+```
+
+### Windows (PowerShell)
+
+```powershell
+$ErrorActionPreference = "Stop"
+
+winget install -e --id Python.Python.3.13
+
+py -3.13 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+
+Write-Host "Setup complete. Run: .\.venv\Scripts\Activate.ps1; uvicorn app.main:app --reload"
+```
+
+Tip: You can copy each block into files like `scripts/setup-macos.sh`, `scripts/setup-ubuntu.sh`, and `scripts/setup-windows.ps1` and run them directly.
 
 ## Testing Environment
 
@@ -205,6 +306,21 @@ Reinstall from scratch in the active environment:
 
 ```bash
 pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+#### Python 3.14 is active by mistake
+
+Symptoms can include dependency install failures, runtime import issues, or inconsistent test behavior.
+
+Fix:
+
+```bash
+python --version
+# if not 3.13, recreate venv with Python 3.13
+rm -rf .venv
+python3.13 -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
