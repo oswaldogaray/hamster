@@ -38,18 +38,52 @@ tests/
 
 ## Run Locally
 
-1. Create a Python 3.13 virtual environment.
+1. Create and activate a Python 3.13 virtual environment.
+
+   **Windows**
+
+   ```bash
+
+   python -m venv .venv
+
+   .venv\Scripts\activate
+
+   ```
+
+   **macOS / Linux**
+
+   ```bash
+
+   python3.13 -m venv .venv
+
+   source .venv/bin/activate
+
+   ```
+
+   Once activated, your terminal should display the virtual environment name (e.g., `(.venv)`), indicating that all dependencies will be installed in an isolated environment.
+
 2. Install dependencies:
+
    ```bash
+
    pip install -r requirements.txt
+
    ```
-3. Run the app:
+
+3. Run the application:
+
    ```bash
+
    uvicorn app.main:app --reload
+
    ```
-   Or run directly:
+
+   Or run it directly with Python:
+
    ```bash
+
    python -m app.main
+
    ```
 
 ## Notes
